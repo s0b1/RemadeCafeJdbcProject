@@ -15,7 +15,8 @@ public class ClientDao {
 
     public void create(Client client) throws SQLException
     {
-        String sql = "INSERT INTO client (full_name, birth_date, phone, email, discount) VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO " +
+                "client (full_name, birth_date, phone, email, discount) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, client.getFullName());
             stmt.setDate(2, Date.valueOf(client.getBirthDate()));

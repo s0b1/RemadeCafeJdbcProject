@@ -60,6 +60,19 @@ public class DessertService {
         return null;
     }
 
+    public void renameDessert(int id, String newNameEn, String newNameLocal) throws SQLException
+    {
+        String sql = "UPDATE dessert SET name_en = ?, name_local = ? WHERE id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setString(1, newNameEn);
+            stmt.setString(2, newNameLocal);
+            stmt.setInt(3, id);
+            stmt.executeUpdate();
+        }
+    }
+
+
+
     public void updateDessert(Dessert dessert) throws SQLException
     {
         String sql = "UPDATE dessert SET name_en = ?, name_local = ?, price = ? WHERE id = ?";

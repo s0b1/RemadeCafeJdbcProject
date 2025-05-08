@@ -49,6 +49,21 @@ public class ConsoleApp
                 9. Delete Dessert
                 10. Add Staff Schedule
                 11. Add Order Item
+                12. Add Coffee Order
+                13. Add Dessert Order
+                14. Add Schedule for Next Monday
+                15. Update Schedule (Next Tuesday)
+                16. Rename Drink
+                17. Update Order Client
+                18. Rename Dessert
+                19. Delete Order by ID
+                20. Delete Orders by Dessert ID
+                21. Delete Schedule for Specific Day
+                22. Delete Schedule Between Dates
+                23. Show Orders with Specific Dessert
+                24. Show Schedule for Specific Day
+                25. Show Orders by Waiter
+                26. Show Orders by Client
                 0. Exit
                 Choose an option:
             """);
@@ -64,6 +79,21 @@ public class ConsoleApp
                 case "9" -> deleteDessert();
                 case "10" -> addStaffSchedule();
                 case "11" -> addOrderItem();
+                case "12" -> addCoffeeOrder();
+                case "13" -> addDessertOrder();
+                case "14" -> addScheduleForNextMonday();
+                case "15" -> updateTuesdaySchedule();
+                case "16" -> renameDrink();
+                case "17" -> updateOrderClient();
+                case "18" -> renameDessert();
+                case "19" -> deleteOrderById();
+                case "20" -> deleteOrdersByDessert();
+                case "21" -> deleteScheduleByDay();
+                case "22" -> deleteScheduleByRange();
+                case "23" -> showOrdersWithDessert();
+                case "24" -> showScheduleForDay();
+                case "25" -> showOrdersByWaiter();
+                case "26" -> showOrdersByClient();
                 case "0" -> {
                     System.out.println("Goodbye!");
                     return;
@@ -238,6 +268,279 @@ public class ConsoleApp
             System.out.println("Error adding order item: " + e.getMessage());
         }
     }
+
+    //INSERT
+
+    private void addCoffeeOrder() {
+        System.out.println("Enter client ID (or leave blank for NULL): ");
+        String input = scanner.nextLine();
+        Integer clientId = input.isBlank() ? null : Integer.parseInt(input);
+
+        System.out.println("Enter drink ID: ");
+        int drinkId = Integer.parseInt(scanner.nextLine());
+
+        System.out.println("Enter quantity: ");
+        int quantity = Integer.parseInt(scanner.nextLine());
+
+        try {
+            Order order = new Order(0, clientId, java.time.LocalDateTime.now());
+            orderService.addOrder(order);
+
+            int orderId = getLastOrderId();
+            orderItemService.addOrderItem(new OrderItem(0, orderId, "drink", drinkId, quantity));
+
+            System.out.println("Coffee order added.");
+        } catch (Exception e) {
+            System.out.println("Error adding coffee order: " + e.getMessage());
+        }
+    }
+
+    private void addDessertOrder() {
+        System.out.println("Enter client ID (or leave blank for NULL): ");
+        String input = scanner.nextLine();
+        Integer clientId = input.isBlank() ? null : Integer.parseInt(input);
+
+        System.out.println("Enter dessert ID: ");
+        int dessertId = Integer.parseInt(scanner.nextLine());
+
+        System.out.println("Enter quantity: ");
+        int quantity = Integer.parseInt(scanner.nextLine());
+
+        try {
+            Order order = new Order(0, clientId, java.time.LocalDateTime.now());
+            orderService.addOrder(order);
+
+            int orderId = getLastOrderId();
+            orderItemService.addOrderItem(new OrderItem(0, orderId, "dessert", dessertId, quantity));
+
+            System.out.println("Dessert order added.");
+        } catch (Exception e) {
+            System.out.println("Error adding dessert order: " + e.getMessage());
+        }
+    }
+
+    private void addScheduleForNextMonday() {
+        System.out.println("Enter staff ID: ");
+        int staffId = Integer.parseInt(scanner.nextLine());
+
+        LocalDate today = LocalDate.now();
+        LocalDate nextMonday = today.plusDays((8 - today.getDayOfWeek().getValue()) % 7);
+
+        System.out.println("Enter shift (e.g., morning/evening): ");
+        String shift = scanner.nextLine();
+
+        try {
+            staffScheduleService.addSchedule(new Schedule(0, staffId, nextMonday, shift));
+            System.out.println("Schedule for next Monday added.");
+        } catch (Exception e) {
+            System.out.println("Error adding Monday schedule: " + e.getMessage());
+        }
+    }
+
+    private int getLastOrderId() throws Exception {
+        return orderService.getAllOrders()
+                .stream()
+                .mapToInt(Order::getId)
+                .max()
+                .orElseThrow(() -> new Exception("No orders found"));
+    }
+
+
+    //UPDATE
+
+    private void updateTuesdaySchedule()
+    {
+        System.out.println("Enter staff ID: ");
+        int staffId = Integer.parseInt(scanner.nextLine());
+
+        LocalDate today = LocalDate.now();
+        LocalDate nextTuesday = today.plusDays((9 - today.getDayOfWeek().getValue()) % 7);
+
+        System.out.println("Enter new shift for next Tuesday: ");
+        String newShift = scanner.nextLine();
+
+        try {
+            staffScheduleService.updateScheduleByDate(staffId, nextTuesday, newShift);
+            System.out.println("Schedule updated.");
+        } catch (Exception e) {
+            System.out.println("Error updating schedule: " + e.getMessage());
+        }
+    }
+
+    private void renameDrink() {
+        System.out.println("Enter drink ID: ");
+        int id = Integer.parseInt(scanner.nextLine());
+
+        System.out.println("Enter new English name: ");
+        String newNameEn = scanner.nextLine();
+
+        System.out.println("Enter new local name: ");
+        String newNameLocal = scanner.nextLine();
+
+        try {
+            drinkService.renameDrink(id, newNameEn, newNameLocal);
+            System.out.println("Drink renamed.");          // pereimenoval Lychee Lemonade v Raspberry Lemonade
+        } catch (Exception e) {
+            System.out.println("Error renaming drink: " + e.getMessage());
+        }
+    }
+
+
+    private void updateOrderClient() {
+        System.out.println("Enter order ID: ");
+        int orderId = Integer.parseInt(scanner.nextLine());
+
+        System.out.println("Enter new client ID (or leave empty for NULL): ");
+        String input = scanner.nextLine();
+        Integer clientId = input.isBlank() ? null : Integer.parseInt(input);
+
+        try {
+            orderService.updateOrderClient(orderId, clientId);
+            System.out.println("Order updated.");
+        } catch (Exception e) {
+            System.out.println("Error updating order: " + e.getMessage());
+        }
+    }
+
+    private void renameDessert() {
+        System.out.println("Enter dessert ID: ");
+        int id = Integer.parseInt(scanner.nextLine());
+
+        System.out.println("Enter new English name: ");
+        String newNameEn = scanner.nextLine();
+
+        System.out.println("Enter new local name: ");
+        String newNameLocal = scanner.nextLine();
+
+        try {
+            dessertService.renameDessert(id, newNameEn, newNameLocal);
+            System.out.println("Dessert renamed.");
+        } catch (Exception e) {
+            System.out.println("Error renaming dessert: " + e.getMessage());
+        }
+    }
+
+    //DELETE
+
+    private void deleteOrderById() {
+        System.out.println("Enter order ID to delete: ");
+        int id = Integer.parseInt(scanner.nextLine());
+
+        try {
+            orderService.deleteOrder(id);
+            System.out.println("Order deleted.");
+        } catch (Exception e) {
+            System.out.println("Error deleting order: " + e.getMessage());
+        }
+    }
+
+    private void deleteOrdersByDessert() {
+        System.out.println("Enter dessert ID: ");
+        int dessertId = Integer.parseInt(scanner.nextLine());
+
+        try {
+            orderItemService.deleteOrdersByDessert(dessertId);
+            System.out.println("Orders containing this dessert deleted.");
+        } catch (Exception e) {
+            System.out.println("Error deleting orders by dessert: " + e.getMessage());
+        }
+    }
+
+    private void deleteScheduleByDay() {
+        System.out.println("Enter work date (YYYY-MM-DD): ");
+        LocalDate date = LocalDate.parse(scanner.nextLine());
+
+        try {
+            staffScheduleService.deleteScheduleByDay(date);
+            System.out.println("Schedule for the day deleted.");
+        } catch (Exception e) {
+            System.out.println("Error deleting schedule: " + e.getMessage());
+        }
+    }
+
+    private void deleteScheduleByRange() {
+        System.out.println("Enter start date (YYYY-MM-DD): ");
+        LocalDate start = LocalDate.parse(scanner.nextLine());
+        System.out.println("Enter end date (YYYY-MM-DD): ");
+        LocalDate end = LocalDate.parse(scanner.nextLine());
+
+        try {
+            staffScheduleService.deleteScheduleByRange(start, end);
+            System.out.println("Schedules between dates deleted.");
+        } catch (Exception e) {
+            System.out.println("Error deleting schedules: " + e.getMessage());
+        }
+    }
+
+    //SELECT
+
+    private void showOrdersWithDessert()
+    {
+        System.out.println("Enter dessert ID: ");
+        int dessertId = Integer.parseInt(scanner.nextLine());
+
+        try {
+            var orders = orderItemService.findOrdersByDessert(dessertId);
+            if (orders.isEmpty()) {
+                System.out.println("No orders found with this dessert.");
+            } else {
+                orders.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving orders: " + e.getMessage());
+        }
+    }
+
+    private void showScheduleForDay() {
+        System.out.println("Enter date (YYYY-MM-DD): ");
+        LocalDate date = LocalDate.parse(scanner.nextLine());
+
+        try {
+            var schedules = staffScheduleService.getScheduleForDay(date);
+            if (schedules.isEmpty()) {
+                System.out.println("No schedules found.");
+            } else {
+                schedules.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving schedule: " + e.getMessage());
+        }
+    }
+
+    private void showOrdersByWaiter() {
+        System.out.println("Enter waiter ID: ");
+        int staffId = Integer.parseInt(scanner.nextLine());
+
+        try {
+            var orders = orderItemService.findOrdersByWaiter(staffId);
+            if (orders.isEmpty()) {
+                System.out.println("No orders found for this waiter.");
+            } else {
+                orders.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving orders: " + e.getMessage());
+        }
+    }
+
+    private void showOrdersByClient() {
+        System.out.println("Enter client ID: ");
+        int clientId = Integer.parseInt(scanner.nextLine());
+
+        try {
+            var orders = orderService.getOrdersByClient(clientId);
+            if (orders.isEmpty()) {
+                System.out.println("No orders found for this client.");
+            } else {
+                orders.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving orders: " + e.getMessage());
+        }
+    }
+
+
+    //main
 
     public static void main(String[] args)
     {
