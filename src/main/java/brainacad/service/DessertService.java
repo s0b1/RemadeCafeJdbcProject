@@ -1,98 +1,63 @@
 package brainacad.service;
 
 import brainacad.model.Dessert;
-import java.sql.*;
-import java.util.ArrayList;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
 
+@Service
 public class DessertService {
-    private final Connection connection;
+    private final JdbcTemplate jdbc;
 
-    public DessertService(Connection connection) {
-        this.connection = connection;
+    public DessertService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void addDessert(Dessert dessert) throws SQLException {
+    public void addDessert(Dessert dessert) {
         String sql = "INSERT INTO dessert (name_en, name_local, price) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, dessert.getNameEn());
-            stmt.setString(2, dessert.getNameLocal());
-            stmt.setDouble(3, dessert.getPrice());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, dessert.getNameEn(), dessert.getNameLocal(), dessert.getPrice());
     }
 
-    public List<Dessert> getAllDesserts() throws SQLException {
-        List<Dessert> desserts = new ArrayList<>();
+    public List<Dessert> getAllDesserts() {
         String sql = "SELECT * FROM dessert";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql))
-        {
-            while (rs.next()) {
-                desserts.add(new Dessert(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                ));
-            }
-        }
-        return desserts;
+        return jdbc.query(sql, dessertRowMapper());
     }
 
-    public Dessert getDessertById(int id) throws SQLException
-    {
+    public Dessert getDessertById(int id) {
         String sql = "SELECT * FROM dessert WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next())
-            {
-                return new Dessert(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                );
-            }
-        }
-        return null;
+        return jdbc.query(sql, dessertRowMapper(), id)
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
-    public void renameDessert(int id, String newNameEn, String newNameLocal) throws SQLException
-    {
+    public void renameDessert(int id, String newNameEn, String newNameLocal) {
         String sql = "UPDATE dessert SET name_en = ?, name_local = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, newNameEn);
-            stmt.setString(2, newNameLocal);
-            stmt.setInt(3, id);
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, newNameEn, newNameLocal, id);
     }
 
-
-
-    public void updateDessert(Dessert dessert) throws SQLException
-    {
+    public void updateDessert(Dessert dessert) {
         String sql = "UPDATE dessert SET name_en = ?, name_local = ?, price = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setString(1, dessert.getNameEn());
-            stmt.setString(2, dessert.getNameLocal());
-            stmt.setDouble(3, dessert.getPrice());
-            stmt.setInt(4, dessert.getId());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                dessert.getNameEn(),
+                dessert.getNameLocal(),
+                dessert.getPrice(),
+                dessert.getId());
     }
 
-    public void deleteDessert(int id) throws SQLException
-    {
+    public void deleteDessert(int id) {
         String sql = "DELETE FROM dessert WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, id);
+    }
+
+    private RowMapper<Dessert> dessertRowMapper() {
+        return (rs, rowNum) -> new Dessert(
+                rs.getInt("id"),
+                rs.getString("name_en"),
+                rs.getString("name_local"),
+                rs.getDouble("price")
+        );
     }
 }

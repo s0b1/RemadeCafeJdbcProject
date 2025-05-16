@@ -1,42 +1,41 @@
 package brainacad.dao;
 
 import brainacad.model.Schedule;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.Date;
 import java.util.List;
 
+@Repository
 public class ScheduleDao {
-    private final Connection connection;
 
-    public ScheduleDao(Connection connection) {
-        this.connection = connection;
+    private final JdbcTemplate jdbc;
+
+    public ScheduleDao(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void create(Schedule schedule) throws SQLException {
+    public void create(Schedule schedule) {
         String sql = "INSERT INTO staff_schedule (staff_id, work_day, shift) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, schedule.getStaffId());
-            stmt.setDate(2, Date.valueOf(schedule.getWorkDay()));
-            stmt.setString(3, schedule.getShift());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                schedule.getStaffId(),
+                Date.valueOf(schedule.getWorkDay()),
+                schedule.getShift());
     }
 
-    public List<Schedule> readAll() throws SQLException {
-        List<Schedule> list = new ArrayList<>();
+    public List<Schedule> readAll() {
         String sql = "SELECT * FROM staff_schedule";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                list.add(new Schedule(
-                        rs.getInt("id"),
-                        rs.getInt("staff_id"),
-                        rs.getDate("work_day").toLocalDate(),
-                        rs.getString("shift")
-                ));
-            }
-        }
-        return list;
+        return jdbc.query(sql, scheduleRowMapper());
+    }
+
+    private RowMapper<Schedule> scheduleRowMapper() {
+        return (rs, rowNum) -> new Schedule(
+                rs.getInt("id"),
+                rs.getInt("staff_id"),
+                rs.getDate("work_day").toLocalDate(),
+                rs.getString("shift")
+        );
     }
 }

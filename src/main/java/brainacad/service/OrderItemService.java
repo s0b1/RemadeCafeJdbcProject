@@ -1,122 +1,150 @@
 package brainacad.service;
 
-import brainacad.model.OrderItem;
 import brainacad.model.Order;
-import brainacad.service.*;
+import brainacad.model.OrderItem;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
 
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
+import java.time.LocalDate;
 
-public class OrderItemService
-{
-    private final Connection connection;
+@Service
+public class OrderItemService {
+    private final JdbcTemplate jdbc;
 
-    public OrderItemService(Connection connection)
-    {
-        this.connection = connection;
+    public OrderItemService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void addOrderItem(OrderItem item) throws SQLException
-    {
+    public void addOrderItem(OrderItem item) {
         String sql = "INSERT INTO order_items (order_id, item_type, item_id, quantity) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, item.getOrderId());
-            stmt.setString(2, item.getItemType());
-            stmt.setInt(3, item.getItemId());
-            stmt.setInt(4, item.getQuantity());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, item.getOrderId(), item.getItemType(), item.getItemId(), item.getQuantity());
     }
 
-    public void deleteOrdersByDessert(int dessertId) throws SQLException {
+    public void deleteOrdersByDessert(int dessertId) {
         String findOrdersSql = """
-        SELECT DISTINCT order_id
-        FROM order_items
-        WHERE item_type = 'dessert' AND item_id = ?
-    """;
+            SELECT DISTINCT order_id FROM order_items
+            WHERE item_type = 'dessert' AND item_id = ?
+        """;
 
-        try (PreparedStatement findStmt = connection.prepareStatement(findOrdersSql)) {
-            findStmt.setInt(1, dessertId);
-            ResultSet rs = findStmt.executeQuery();
-
-            while (rs.next()) {
-                int orderId = rs.getInt("order_id");
-                String deleteOrder = "DELETE FROM orders WHERE id = ?";
-                try (PreparedStatement deleteStmt = connection.prepareStatement(deleteOrder)) {
-                    deleteStmt.setInt(1, orderId);
-                    deleteStmt.executeUpdate();
-                }
-            }
+        List<Integer> orderIds = jdbc.query(findOrdersSql, (rs, rowNum) -> rs.getInt("order_id"), dessertId);
+        for (int orderId : orderIds) {
+            jdbc.update("DELETE FROM orders WHERE id = ?", orderId);
         }
     }
 
-
-    public List<Order> findOrdersByDessert(int dessertId) throws SQLException {
+    public List<Order> findOrdersByDessert(int dessertId) {
         String sql = """
-        SELECT DISTINCT o.* FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        WHERE oi.item_type = 'dessert' AND oi.item_id = ?
-    """;
-        List<Order> result = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, dessertId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                result.add(new Order(
-                        rs.getInt("id"),
-                        rs.getObject("client_id", Integer.class),
-                        rs.getTimestamp("order_date").toLocalDateTime()
-                ));
-            }
-        }
-        return result;
+            SELECT DISTINCT o.* FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            WHERE oi.item_type = 'dessert' AND oi.item_id = ?
+        """;
+        return jdbc.query(sql, orderRowMapper(), dessertId);
     }
 
-    public List<Order> findOrdersByWaiter(int waiterId) throws SQLException {
+    public List<Order> findOrdersByWaiter(int waiterId) {
         String sql = """
-        SELECT DISTINCT o.* FROM orders o
-        JOIN order_items oi ON o.id = oi.order_id
-        WHERE EXISTS (
-            SELECT 1 FROM staff s WHERE s.id = ? AND s.position = 'Официант'
-        )
-    """;
-        List<Order> result = new ArrayList<>();
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, waiterId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                result.add(new Order(
-                        rs.getInt("id"),
-                        rs.getObject("client_id", Integer.class),
-                        rs.getTimestamp("order_date").toLocalDateTime()
-                ));
-            }
-        }
-        return result;
+            SELECT DISTINCT o.* FROM orders o
+            JOIN order_items oi ON o.id = oi.order_id
+            WHERE EXISTS (
+                SELECT 1 FROM staff s WHERE s.id = ? AND s.position = 'Официант'
+            )
+        """;
+        return jdbc.query(sql, orderRowMapper(), waiterId);
     }
 
-
-
-    public List<OrderItem> getItemsByOrderId(int orderId) throws SQLException
-    {
-        List<OrderItem> items = new ArrayList<>();
+    public List<OrderItem> getItemsByOrderId(int orderId) {
         String sql = "SELECT * FROM order_items WHERE order_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, orderId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                items.add(new OrderItem(
-                        rs.getInt("id"),
-                        rs.getInt("order_id"),
-                        rs.getString("item_type"),
-                        rs.getInt("item_id"),
-                        rs.getInt("quantity")
-                ));
-            }
-        }
-        return items;
+        return jdbc.query(sql, orderItemRowMapper(), orderId);
     }
+
+    private RowMapper<OrderItem> orderItemRowMapper() {
+        return (rs, rowNum) -> new OrderItem(
+                rs.getInt("id"),
+                rs.getInt("order_id"),
+                rs.getString("item_type"),
+                rs.getInt("item_id"),
+                rs.getInt("quantity")
+        );
+    }
+
+    private RowMapper<Order> orderRowMapper() {
+        return (rs, rowNum) -> new Order(
+                rs.getInt("id"),
+                rs.getObject("client_id", Integer.class),
+                rs.getTimestamp("order_date").toLocalDateTime()
+        );
+    }
+
+    // zadanie 3
+
+    public int countDessertOrdersByDate(LocalDate date) {
+        String sql = """
+            SELECT COUNT(*) FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE oi.item_type = 'dessert' AND DATE(o.order_date) = ?
+        """;
+        return jdbc.queryForObject(sql, Integer.class, date);
+    }
+
+    public int countDrinkOrdersByDate(LocalDate date) {
+        String sql = """
+            SELECT COUNT(*) FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE oi.item_type = 'drink' AND DATE(o.order_date) = ?
+        """;
+        return jdbc.queryForObject(sql, Integer.class, date);
+    }
+
+    public List<ClientBaristaDTO> getClientsAndBaristasForTodayDrinks()
+    {
+        String sql = """
+            SELECT c.full_name AS client_name, c.email AS client_email,
+                   s.full_name AS barista_name, s.email AS barista_email
+            FROM orders o
+            JOIN client c ON o.client_id = c.id
+            JOIN order_items oi ON o.id = oi.order_id
+            JOIN staff s ON s.position = 'Бариста'
+            WHERE oi.item_type = 'drink'
+              AND DATE(o.order_date) = CURRENT_DATE
+        """;
+
+        return jdbc.query(sql, clientBaristaMapper());
+    }
+
+    private RowMapper<ClientBaristaDTO> clientBaristaMapper()
+    {
+        return (rs, rowNum) -> new ClientBaristaDTO(
+                rs.getString("client_name"),
+                rs.getString("client_email"),
+                rs.getString("barista_name"),
+                rs.getString("barista_email")
+        );
+    }
+
+    public static class ClientBaristaDTO
+    {
+        private final String clientName;
+        private final String clientEmail;
+        private final String baristaName;
+        private final String baristaEmail;
+
+        public ClientBaristaDTO(String clientName, String clientEmail, String baristaName, String baristaEmail)
+        {
+            this.clientName = clientName;
+            this.clientEmail = clientEmail;
+            this.baristaName = baristaName;
+            this.baristaEmail = baristaEmail;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Client: %s (%s), Barista: %s (%s)".formatted(clientName, clientEmail, baristaName, baristaEmail);
+        }
+    }
+
 }

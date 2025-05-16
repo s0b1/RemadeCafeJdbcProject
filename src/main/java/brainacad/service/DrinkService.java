@@ -1,91 +1,61 @@
 package brainacad.service;
 
 import brainacad.model.Drink;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
 
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 
+@Service
 public class DrinkService {
-    private final Connection connection;
+    private final JdbcTemplate jdbc;
 
-    public DrinkService(Connection connection) {
-        this.connection = connection;
+    public DrinkService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void addDrink(Drink drink) throws SQLException {
+    public void addDrink(Drink drink) {
         String sql = "INSERT INTO drink (name_en, name_local, price) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, drink.getNameEn());
-            stmt.setString(2, drink.getNameLocal());
-            stmt.setDouble(3, drink.getPrice());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, drink.getNameEn(), drink.getNameLocal(), drink.getPrice());
     }
 
-    public List<Drink> getAllDrinks() throws SQLException {
-        List<Drink> drinks = new ArrayList<>();
-        String sql = "SELECT * FROM drink";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                drinks.add(new Drink(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                ));
-            }
-        }
-        return drinks;
+    public List<Drink> getAllDrinks() {
+        return jdbc.query("SELECT * FROM drink", drinkRowMapper());
     }
 
-    public Drink getDrinkById(int id) throws SQLException {
+    public Drink getDrinkById(int id) {
         String sql = "SELECT * FROM drink WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return new Drink(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                );
-            }
-        }
-        return null;
+        return jdbc.query(sql, drinkRowMapper(), id)
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
-
-    public void renameDrink(int id, String newNameEn, String newNameLocal) throws SQLException {
+    public void renameDrink(int id, String newNameEn, String newNameLocal) {
         String sql = "UPDATE drink SET name_en = ?, name_local = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, newNameEn);
-            stmt.setString(2, newNameLocal);
-            stmt.setInt(3, id);
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, newNameEn, newNameLocal, id);
     }
 
-
-
-    public void updateDrink(Drink drink) throws SQLException {
+    public void updateDrink(Drink drink) {
         String sql = "UPDATE drink SET name_en = ?, name_local = ?, price = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, drink.getNameEn());
-            stmt.setString(2, drink.getNameLocal());
-            stmt.setDouble(3, drink.getPrice());
-            stmt.setInt(4, drink.getId());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                drink.getNameEn(),
+                drink.getNameLocal(),
+                drink.getPrice(),
+                drink.getId());
     }
 
-    public void deleteDrink(int id) throws SQLException {
-        String sql = "DELETE FROM drink WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
+    public void deleteDrink(int id) {
+        jdbc.update("DELETE FROM drink WHERE id = ?", id);
+    }
+
+    private RowMapper<Drink> drinkRowMapper() {
+        return (rs, rowNum) -> new Drink(
+                rs.getInt("id"),
+                rs.getString("name_en"),
+                rs.getString("name_local"),
+                rs.getDouble("price")
+        );
     }
 }

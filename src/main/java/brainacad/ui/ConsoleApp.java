@@ -8,10 +8,16 @@ import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.Scanner;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
+
 // ВАЖНАЯ ЗАМЕТКА!!! Писать позиции работников нужно на русском! (т.e Бариста Официант Кондитер)
 // staff id начинается с 4
 // я также с напитками тестировал удаление по этому там некоторые начинаются на 6 и 7
-public class ConsoleApp
+
+@Component
+public class ConsoleApp implements CommandLineRunner
 {
 
     private final DrinkService drinkService;
@@ -24,14 +30,28 @@ public class ConsoleApp
 
     private final Scanner scanner = new Scanner(System.in);
 
-    public ConsoleApp(Connection connection) {
-        this.drinkService = new DrinkService(connection);
-        this.staffService = new StaffService(connection);
-        this.clientService = new ClientService(connection);
-        this.orderService = new OrderService(connection);
-        this.dessertService = new DessertService(connection);
-        this.staffScheduleService = new ScheduleService(connection);
-        this.orderItemService = new OrderItemService(connection);
+    @Autowired
+    public ConsoleApp(
+            DrinkService drinkService,
+            StaffService staffService,
+            ClientService clientService,
+            OrderService orderService,
+            DessertService dessertService,
+            ScheduleService staffScheduleService,
+            OrderItemService orderItemService
+    ) {
+        this.drinkService = drinkService;
+        this.staffService = staffService;
+        this.clientService = clientService;
+        this.orderService = orderService;
+        this.dessertService = dessertService;
+        this.staffScheduleService = staffScheduleService;
+        this.orderItemService = orderItemService;
+    }
+
+    @Override
+    public void run(String... args) throws Exception {
+        start();
     }
 
     public void start() {
@@ -64,6 +84,9 @@ public class ConsoleApp
                 24. Show Schedule for Specific Day
                 25. Show Orders by Waiter
                 26. Show Orders by Client
+                27. Show Barista Week Schedule (by ID)
+                28. Show All Baristas Week Schedule
+                29. Show All Staff Week Schedule
                 0. Exit
                 Choose an option:
             """);
@@ -94,6 +117,9 @@ public class ConsoleApp
                 case "24" -> showScheduleForDay();
                 case "25" -> showOrdersByWaiter();
                 case "26" -> showOrdersByClient();
+                case "27" -> showBaristaWeekScheduleById();
+                case "28" -> showAllBaristasWeekSchedule();
+                case "29" -> showAllStaffWeekSchedule();
                 case "0" -> {
                     System.out.println("Goodbye!");
                     return;
@@ -539,21 +565,54 @@ public class ConsoleApp
         }
     }
 
+    private void showBaristaWeekScheduleById() {
+        System.out.println("Enter Barista ID: ");
+        int id = Integer.parseInt(scanner.nextLine());
+        System.out.println("Enter week start date (YYYY-MM-DD): ");
+        LocalDate start = LocalDate.parse(scanner.nextLine());
 
-    //main
-
-    public static void main(String[] args)
-    {
-        try (Connection connection = DriverManager.getConnection(
-                "jdbc:postgresql://localhost:5432/coffeehouse",
-                "postgres", "123456"))
-        {
-            new ConsoleApp(connection).start();
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
+        try {
+            var list = staffScheduleService.getWeekScheduleForBarista(id, start);
+            if (list.isEmpty()) {
+                System.out.println("No schedule found.");
+            } else {
+                list.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving barista schedule: " + e.getMessage());
         }
     }
+
+    private void showAllBaristasWeekSchedule() {
+        System.out.println("Enter week start date (YYYY-MM-DD): ");
+        LocalDate start = LocalDate.parse(scanner.nextLine());
+        try {
+            var list = staffScheduleService.getWeekScheduleForAllBaristas(start);
+            if (list.isEmpty()) {
+                System.out.println("No schedule found.");
+            } else {
+                list.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving schedule: " + e.getMessage());
+        }
+    }
+
+    private void showAllStaffWeekSchedule() {
+        System.out.println("Enter week start date (YYYY-MM-DD): ");
+        LocalDate start = LocalDate.parse(scanner.nextLine());
+        try {
+            var list = staffScheduleService.getWeekScheduleForAllStaff(start);
+            if (list.isEmpty()) {
+                System.out.println("No schedule found.");
+            } else {
+                list.forEach(System.out::println);
+            }
+        } catch (Exception e) {
+            System.out.println("Error retrieving schedule: " + e.getMessage());
+        }
+    }
+
+
 }
 

@@ -1,46 +1,42 @@
 package brainacad.dao;
 
 import brainacad.model.OrderItem;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 
-public class OrderItemDao
-{
-    private final Connection connection;
+@Repository
+public class OrderItemDao {
 
-    public OrderItemDao(Connection connection) {
-        this.connection = connection;
+    private final JdbcTemplate jdbc;
+
+    public OrderItemDao(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void create(OrderItem item) throws SQLException {
+    public void create(OrderItem item) {
         String sql = "INSERT INTO order_items (order_id, item_type, item_id, quantity) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, item.getOrderId());
-            stmt.setString(2, item.getItemType());
-            stmt.setInt(3, item.getItemId());
-            stmt.setInt(4, item.getQuantity());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                item.getOrderId(),
+                item.getItemType(),
+                item.getItemId(),
+                item.getQuantity());
     }
 
-    public List<OrderItem> readByOrderId(int orderId) throws SQLException {
-        List<OrderItem> list = new ArrayList<>();
+    public List<OrderItem> readByOrderId(int orderId) {
         String sql = "SELECT * FROM order_items WHERE order_id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, orderId);
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                list.add(new OrderItem(
-                        rs.getInt("id"),
-                        rs.getInt("order_id"),
-                        rs.getString("item_type"),
-                        rs.getInt("item_id"),
-                        rs.getInt("quantity")
-                ));
-            }
-        }
-        return list;
+        return jdbc.query(sql, orderItemRowMapper(), orderId);
+    }
+
+    private RowMapper<OrderItem> orderItemRowMapper() {
+        return (rs, rowNum) -> new OrderItem(
+                rs.getInt("id"),
+                rs.getInt("order_id"),
+                rs.getString("item_type"),
+                rs.getInt("item_id"),
+                rs.getInt("quantity")
+        );
     }
 }

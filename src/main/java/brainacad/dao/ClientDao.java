@@ -1,89 +1,66 @@
 package brainacad.dao;
 
 import brainacad.model.Client;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
 
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.Date;
 import java.util.List;
 
+@Repository
 public class ClientDao {
-    private final Connection connection;
+    private final JdbcTemplate jdbc;
 
-    public ClientDao(Connection connection) {
-        this.connection = connection;
+    public ClientDao(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void create(Client client) throws SQLException
-    {
-        String sql = "INSERT INTO " +
-                "client (full_name, birth_date, phone, email, discount) VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, client.getFullName());
-            stmt.setDate(2, Date.valueOf(client.getBirthDate()));
-            stmt.setString(3, client.getPhone());
-            stmt.setString(4, client.getEmail());
-            stmt.setDouble(5, client.getDiscount());
-            stmt.executeUpdate();
-        }
+    public void create(Client client) {
+        String sql = "INSERT INTO client (full_name, birth_date, phone, email, discount) VALUES (?, ?, ?, ?, ?)";
+        jdbc.update(sql,
+                client.getFullName(),
+                Date.valueOf(client.getBirthDate()),
+                client.getPhone(),
+                client.getEmail(),
+                client.getDiscount());
     }
 
-    public List<Client> readAll() throws SQLException {
-        List<Client> list = new ArrayList<>();
-        String sql = "SELECT * FROM client";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql))
-        {
-            while (rs.next()) {
-                list.add(new Client(
-                        rs.getInt("id"),
-                        rs.getString("full_name"),
-                        rs.getDate("birth_date").toLocalDate(),
-                        rs.getString("phone"),
-                        rs.getString("email"),
-                        rs.getDouble("discount")
-                ));
-            }
-        }
-        return list;
+    public List<Client> readAll() {
+        return jdbc.query("SELECT * FROM client", clientRowMapper());
     }
 
-    public Client readById(int id) throws SQLException {
+    public Client readById(int id) {
         String sql = "SELECT * FROM client WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return new Client(
-                        rs.getInt("id"),
-                        rs.getString("full_name"),
-                        rs.getDate("birth_date").toLocalDate(),
-                        rs.getString("phone"),
-                        rs.getString("email"),
-                        rs.getDouble("discount")
-                );
-            }
-        }
-        return null;
+        return jdbc.query(sql, clientRowMapper(), id)
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
-    public void update(Client client) throws SQLException {
+    public void update(Client client) {
         String sql = "UPDATE client SET full_name = ?, birth_date = ?, phone = ?, email = ?, discount = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, client.getFullName());
-            stmt.setDate(2, Date.valueOf(client.getBirthDate()));
-            stmt.setString(3, client.getPhone());
-            stmt.setString(4, client.getEmail());
-            stmt.setDouble(5, client.getDiscount());
-            stmt.setInt(6, client.getId());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                client.getFullName(),
+                Date.valueOf(client.getBirthDate()),
+                client.getPhone(),
+                client.getEmail(),
+                client.getDiscount(),
+                client.getId());
     }
 
-    public void delete(int id) throws SQLException {
-        String sql = "DELETE FROM client WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
+    public void delete(int id) {
+        jdbc.update("DELETE FROM client WHERE id = ?", id);
+    }
+
+    private RowMapper<Client> clientRowMapper() {
+        return (rs, rowNum) -> new Client(
+                rs.getInt("id"),
+                rs.getString("full_name"),
+                rs.getDate("birth_date").toLocalDate(),
+                rs.getString("phone"),
+                rs.getString("email"),
+                rs.getDouble("discount")
+        );
     }
 }

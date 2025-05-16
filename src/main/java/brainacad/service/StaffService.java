@@ -1,70 +1,54 @@
 package brainacad.service;
 
 import brainacad.model.Staff;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
 
-import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 
+@Service
 public class StaffService {
-    private final Connection connection;
+    private final JdbcTemplate jdbc;
 
-    public StaffService(Connection connection) {
-        this.connection = connection;
+    public StaffService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void addStaff(Staff staff) throws SQLException {
+    public void addStaff(Staff staff) {
         String sql = "INSERT INTO staff (full_name, phone, email, position) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, staff.getFullName());
-            stmt.setString(2, staff.getPhone());
-            stmt.setString(3, staff.getEmail());
-            stmt.setString(4, staff.getPosition());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                staff.getFullName(),
+                staff.getPhone(),
+                staff.getEmail(),
+                staff.getPosition());
     }
 
-    public List<Staff> getAllStaff() throws SQLException {
-        List<Staff> list = new ArrayList<>();
-        String sql = "SELECT * FROM staff";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                list.add(new Staff(
-                        rs.getInt("id"),
-                        rs.getString("full_name"),
-                        rs.getString("phone"),
-                        rs.getString("email"),
-                        rs.getString("position")
-                ));
-            }
-        }
-        return list;
+    public List<Staff> getAllStaff() {
+        return jdbc.query("SELECT * FROM staff", staffRowMapper());
     }
 
-    public void updateStaffPhone(int id, String newPhone) throws SQLException {
+    public void updateStaffPhone(int id, String newPhone) {
         String sql = "UPDATE staff SET phone = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, newPhone);
-            stmt.setInt(2, id);
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, newPhone, id);
     }
 
-    public void updateStaffEmail(int id, String newEmail) throws SQLException {
+    public void updateStaffEmail(int id, String newEmail) {
         String sql = "UPDATE staff SET email = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setString(1, newEmail);
-            stmt.setInt(2, id);
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, newEmail, id);
     }
 
-    public void deleteStaff(int id) throws SQLException {
-        String sql = "DELETE FROM staff WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
+    public void deleteStaff(int id) {
+        jdbc.update("DELETE FROM staff WHERE id = ?", id);
+    }
+
+    private RowMapper<Staff> staffRowMapper() {
+        return (rs, rowNum) -> new Staff(
+                rs.getInt("id"),
+                rs.getString("full_name"),
+                rs.getString("phone"),
+                rs.getString("email"),
+                rs.getString("position")
+        );
     }
 }

@@ -1,89 +1,57 @@
 package brainacad.dao;
 
 import brainacad.model.Dessert;
-import java.sql.*;
-import java.util.ArrayList;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
 import java.util.List;
 
+@Repository
 public class DessertDao {
-    private final Connection connection;
 
-    public DessertDao(Connection connection) {
-        this.connection = connection;
+    private final JdbcTemplate jdbc;
+
+    public DessertDao(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
     }
 
-    public void create(Dessert dessert) throws SQLException
-    {
+    public void create(Dessert dessert) {
         String sql = "INSERT INTO dessert (name_en, name_local, price) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setString(1, dessert.getNameEn());
-            stmt.setString(2, dessert.getNameLocal());
-            stmt.setDouble(3, dessert.getPrice());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql, dessert.getNameEn(), dessert.getNameLocal(), dessert.getPrice());
     }
 
-    public List<Dessert> readAll() throws SQLException
-    {
-        List<Dessert> list = new ArrayList<>();
-        String sql = "SELECT * FROM dessert";
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql))
-        {
-            while (rs.next())
-            {
-                list.add(new Dessert(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                ));
-            }
-        }
-        return list;
+    public List<Dessert> readAll() {
+        return jdbc.query("SELECT * FROM dessert", dessertRowMapper());
     }
 
-    public Dessert readById(int id) throws SQLException
-    {
+    public Dessert readById(int id) {
         String sql = "SELECT * FROM dessert WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next())
-            {
-                return new Dessert(
-                        rs.getInt("id"),
-                        rs.getString("name_en"),
-                        rs.getString("name_local"),
-                        rs.getDouble("price")
-                );
-            }
-        }
-        return null;
+        return jdbc.query(sql, dessertRowMapper(), id)
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
-    public void update(Dessert dessert) throws SQLException
-    {
+    public void update(Dessert dessert) {
         String sql = "UPDATE dessert SET name_en = ?, name_local = ?, price = ? WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setString(1, dessert.getNameEn());
-            stmt.setString(2, dessert.getNameLocal());
-            stmt.setDouble(3, dessert.getPrice());
-            stmt.setInt(4, dessert.getId());
-            stmt.executeUpdate();
-        }
+        jdbc.update(sql,
+                dessert.getNameEn(),
+                dessert.getNameLocal(),
+                dessert.getPrice(),
+                dessert.getId());
     }
 
-    public void delete(int id) throws SQLException
-    {
-        String sql = "DELETE FROM dessert WHERE id = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(sql))
-        {
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
-        }
+    public void delete(int id) {
+        jdbc.update("DELETE FROM dessert WHERE id = ?", id);
+    }
+
+    private RowMapper<Dessert> dessertRowMapper() {
+        return (rs, rowNum) -> new Dessert(
+                rs.getInt("id"),
+                rs.getString("name_en"),
+                rs.getString("name_local"),
+                rs.getDouble("price")
+        );
     }
 }
